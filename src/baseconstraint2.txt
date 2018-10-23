@@ -1,0 +1,5 @@
+    &COLVAR
+      &DISTANCE
+        ATOMS $var_pos1 $var_pos2
+      &END DISTANCE
+    &END COLVAR

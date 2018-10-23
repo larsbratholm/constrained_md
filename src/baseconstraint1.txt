@@ -1,0 +1,5 @@
+    &COLLECTIVE
+      COLVAR $var_constraint_n
+      TARGET [angstrom] $var_constraint_distance
+      INTERMOLECULAR
+    &END COLLECTIVE

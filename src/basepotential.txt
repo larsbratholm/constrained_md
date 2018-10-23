@@ -1,0 +1,4 @@
+    &KIND $var_atomtype
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q$var_valence_electrons
+    &END KIND

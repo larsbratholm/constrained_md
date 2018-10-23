@@ -1,0 +1,50 @@
+&GLOBAL
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+  PROJECT_NAME $var_name
+&END GLOBAL
+&MOTION
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD $var_dump_frequency
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+  &MD
+    ENSEMBLE NVT
+    &THERMOSTAT
+      TYPE CSVR
+      &CSVR
+      &END CSVR
+    &END THERMOSTAT
+    TEMPERATURE $var_temperature
+    STEPS $var_steps
+    TIMESTEP $var_timestep
+  &END MD
+  &CONSTRAINT
+$block_constraints1  &END CONSTRAINT
+&END MOTION
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+$block_charge    &QS
+      METHOD PM6
+      &SE
+         ANALYTICAL_GRADIENTS T
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      $var_cell
+    &END CELL
+    &TOPOLOGY
+     COORD_FILE_FORMAT XYZ
+     COORD_FILE_NAME $var_filename
+    &END TOPOLOGY
+$block_kind$block_constraints2  &END SUBSYS
+&END FORCE_EVAL
