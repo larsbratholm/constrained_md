@@ -8,8 +8,8 @@ import numpy as np
 
 def get_constraints(atomtypes, coordinates):
 
-    # Find all hydrogens
-    h_idx = np.where(atomtypes == "H")[0]
+    # set primary, secondary and tertiary carbon
+    h_idx = np.asarray([7, 10, 11])
     # Find all carbons
     c_idx = np.where(atomtypes == "C")[0]
     # Get all distances between carbons and hydrogens
@@ -25,7 +25,6 @@ def get_constraints(atomtypes, coordinates):
 
     # Basic range for distances
     distance_constraints = [0.9, 1.0, 1.1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9]
-    distance_constraints = distance_constraints[:2]
 
     # constraints of the form (atom_index_1, atom_index_2, distance), using python indexing
     constraints = []
