@@ -14,7 +14,6 @@ set,charge=$var_charge
 
 basis=$var_basis
 
-hf
 {$var_method;}
 {optg,method=slrf;
 $block_constraints{slopt;cart;}}
