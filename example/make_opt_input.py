@@ -3,7 +3,7 @@ import os, sys
 from os.path import dirname, join, abspath
 sys.path.insert(0, abspath(join(dirname(__file__), '../src')))
 
-from generate_input import write_batch_input, parse_xyz
+from generate_input import write_batch_opt_input, parse_xyz_file
 import numpy as np
 
 def get_constraints(atomtypes, coordinates):
@@ -24,7 +24,8 @@ def get_constraints(atomtypes, coordinates):
     cyanide_c = 17
 
     # Basic range for distances
-    distance_constraints = np.arange(0.9, 4.1, 0.2)
+    distance_constraints = [0.9, 1.0, 1.1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9]
+    distance_constraints = distance_constraints[:2]
 
     # constraints of the form (atom_index_1, atom_index_2, distance), using python indexing
     constraints = []
@@ -47,10 +48,9 @@ if __name__ == "__main__":
 
     filename = "isopentane_cn.xyz"
 
-    atomtypes, coordinates = parse_xyz(filename)
+    atomtypes, coordinates = parse_xyz_file(filename)
     constraints, basenames = get_constraints(atomtypes, coordinates)
     elements = np.unique(atomtypes)
 
-    write_batch_input(filename, elements, basenames, constraints,
-        dump_frequency=50, temperature=300, steps=1000, timestep=0.25,
-        charge=0, radical=True)
+    write_batch_opt_input(filename, basenames, constraints)
+

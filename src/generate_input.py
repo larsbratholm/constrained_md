@@ -8,7 +8,7 @@ import numpy as np
 import openbabel as ob
 
 
-def check_vars(dump_frequency, temperature, steps, timestep, charge, radical):
+def check_md_vars(dump_frequency, temperature, steps, timestep, charge, radical):
     assert dump_frequency > 0
     assert isinstance(dump_frequency, int)
     assert temperature > 0
@@ -19,13 +19,22 @@ def check_vars(dump_frequency, temperature, steps, timestep, charge, radical):
     assert isinstance(charge, int)
     assert isinstance(radical, bool)
 
-def parse_xyz(filename):
+def parse_xyz_file(filename):
     """
     Parse an XYZ file and return atom types and carteesian coordinates
     """
     with open(filename) as f:
         lines = f.readlines()
+    return parse_xyz(lines)
 
+def parse_xyz_string(xyz):
+    """
+    Parse an XYZ string and return atom types and carteesian coordinates
+    """
+    lines = xyz.split("\n")[:-1]
+    return parse_xyz(lines)
+
+def parse_xyz(lines):
     coordinates = []
     atomtypes = []
 
@@ -35,15 +44,40 @@ def parse_xyz(filename):
         coordinates.append(tokens[1:])
     return np.asarray(atomtypes), np.asarray(coordinates, dtype=float)
 
-def write_batch_input(xyz_filename, elements, basenames, constraints,
+def get_molpro_coordinates(atomtypes, coordinates):
+    """
+    Convert atomtypes and coordinates to molpro xyz format
+    with named atom types
+    """
+
+    n = len(atomtypes)
+    uniq, counts = np.unique(atomtypes, return_counts=True)
+
+    xyz = "%d \n\n" % n
+    c = 0
+    for i in range(n):
+        xyz += "%s%d %.6f %.6f %.6f\n" % (atomtypes[i], c, *coordinates[i])
+        c += 1
+
+    return xyz
+
+def write_batch_md_input(xyz_filename, elements, basenames, constraints,
         **kwargs):
     """
-    Batch version of write_input
+    Batch version of write_md_input
     """
     for basename, constraint in zip(basenames, constraints):
-        write_input(xyz_filename, elements, basename, constraint, **kwargs)
+        write_md_input(xyz_filename, elements, basename, constraint, **kwargs)
 
-def constrained_optimization(xyz_filename, outname, constraints):
+def write_batch_opt_input(xyz_filename, basenames, constraints,
+        **kwargs):
+    """
+    Batch version of write_opt_input
+    """
+    for basename, constraint in zip(basenames, constraints):
+        write_opt_input(xyz_filename, basename, constraint, **kwargs)
+
+def constrained_ff_optimization(xyz_filename, constraints):
     """
     Do a constrained optimization with UFF to make
     sure that the ab initio MD won't explode
@@ -61,20 +95,40 @@ def constrained_optimization(xyz_filename, outname, constraints):
     for idx1, idx2, distance in constraints:
         ffconstraints.AddDistanceConstraint(int(idx1)+1, int(idx2)+1, float(distance))
 
+    ## If only two constraints, then add additional angle constraint
+    #if len(constraints) == 2:
+    #    idx1 = constraints[0][0]
+    #    idx2 = constraints[0][1]
+    #    idx3 = constraints[1][0]
+    #    idx4 = constraints[1][1]
+
+    #    #if idx1 == idx3:
+    #    #    ffconstraints.AddAngleConstraint(int(idx2), int(idx1), int(idx4), 180.0)
+    #    #    #ffconstraints.AddAngleConstraint(int(idx2), int(idx1), int(idx4)+1, 180.0)
+    #    #elif idx1 == idx4:
+    #    #    ffconstraints.AddAngleConstraint(int(idx2), int(idx1), int(idx3), 180.0)
+    #    #elif idx2 == idx3:
+    #    #    ffconstraints.AddAngleConstraint(int(idx1), int(idx2), int(idx4), 180.0)
+    #    #elif idx2 == idx4:
+    #    #    ffconstraints.AddAngleConstraint(int(idx1), int(idx2), int(idx3), 180.0)
+
+
+
+
     # Setup the force field with the constraints
     forcefield = ob.OBForceField.FindForceField("UFF")
     forcefield.Setup(mol, ffconstraints)
     forcefield.SetConstraints(ffconstraints)
 
-    # Do a 500 steps conjugate gradient minimiazation
+    # Do a 1000 steps conjugate gradient minimization
     # and save the coordinates to mol.
     forcefield.ConjugateGradients(500)
+
     forcefield.GetCoordinates(mol)
 
-    # Write the mol to a file
-    conv.WriteFile(mol, outname)
+    return conv, mol
 
-def write_input(xyz_filename, elements, basename, constraints,
+def write_md_input(xyz_filename, elements, basename, constraints,
         dump_frequency=100, temperature=300, steps=300, timestep=0.25,
         charge=0, radical=False, cell="ABC 20.0 20.0 20.0"):
     """
@@ -83,15 +137,14 @@ def write_input(xyz_filename, elements, basename, constraints,
     Each single constraint is a tuple of the form
     (index_1, index_2, distance)
     """
-    check_vars(dump_frequency, temperature, steps, timestep, charge, radical)
+    check_md_vars(dump_frequency, temperature, steps, timestep, charge, radical)
 
     # Read in the input template
-    with open(dir_path + "/baseinput.txt") as f:
+    with open(dir_path + "/basemdinput.txt") as f:
         inp = f.read()
 
     # Change MD parameters
     inp = inp.replace("$var_name", basename)
-    inp = inp.replace("$var_dump_frequency", str(dump_frequency))
     inp = inp.replace("$var_dump_frequency", str(dump_frequency))
     inp = inp.replace("$var_temperature", str(temperature))
     inp = inp.replace("$var_steps", str(steps))
@@ -161,4 +214,55 @@ def write_input(xyz_filename, elements, basename, constraints,
         f.write(inp)
 
     # Do a constrained MM FF optimization to get initial structure
-    constrained_optimization(xyz_filename, outname, constraints)
+    conv, mol = constrained_ff_optimization(xyz_filename, constraints)
+
+    # Write the mol to a file
+    conv.WriteFile(mol, outname)
+
+def write_opt_input(xyz_filename, basename, constraints, charge=0,
+        basis="svp", method="CF-UKS,COARSE=true,tpss", memory=4):
+    """
+    Writes a cp2k inputfile in 'basename.inp'.
+    'constraints' is a list of single constraints.
+    Each single constraint is a tuple of the form
+    (index_1, index_2, distance)
+    'memory' is in GB and is converted to MWords
+    """
+
+    # Read in the input template
+    with open(dir_path + "/baseoptinput.txt") as f:
+        inp = f.read()
+
+    # Convert from gb to MWords
+    memory = int(memory/7.45e-3)
+
+    # Do a constrained MM FF optimization to get initial structure
+    conv, mol = constrained_ff_optimization(xyz_filename, constraints)
+    xyz_string = conv.WriteString(mol)
+    conv.WriteFile(mol, basename + ".xyz")
+
+    # Parse xyz
+    atomtypes, coordinates = parse_xyz_string(xyz_string)
+
+    # Change opt parameters
+    inp = inp.replace("$var_memory", str(memory))
+    inp = inp.replace("$block_xyz", get_molpro_coordinates(atomtypes, coordinates))
+    inp = inp.replace("$var_charge", str(charge))
+    inp = inp.replace("$var_basis", str(basis))
+    inp = inp.replace("$var_method", str(method))
+
+    con = "constraint,$var_distance,angstrom,bond,atoms=[$var_pos1,$var_pos2]\n"
+
+    constraint_block = ""
+    for index1, index2, distance in constraints:
+        this_constraint = con.replace("$var_distance", "%.3f" % distance)
+        this_constraint = this_constraint.replace("$var_pos1", str(atomtypes[index1]) + str(index1))
+        this_constraint = this_constraint.replace("$var_pos2", str(atomtypes[index2]) + str(index2))
+        constraint_block += this_constraint
+
+    inp = inp.replace("$block_constraints", constraint_block)
+
+    # Write input file
+    with open(basename + ".com", "w") as f:
+        f.write(inp)
+
