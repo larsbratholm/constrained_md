@@ -24,7 +24,7 @@ def get_constraints(atomtypes, coordinates):
     cyanide_c = 17
 
     # Basic range for distances
-    distance_constraints = [0.9, 1.0, 1.1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9]
+    distance_constraints = [0.9, 1.0, 1.1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0]
 
     # constraints of the form (atom_index_1, atom_index_2, distance), using python indexing
     constraints = []

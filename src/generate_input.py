@@ -76,6 +76,7 @@ def write_batch_opt_input(xyz_filename, basenames, constraints,
     """
     for basename, constraint in zip(basenames, constraints):
         write_opt_input(xyz_filename, basename, constraint, **kwargs)
+        quit()
 
 def constrained_ff_optimization(xyz_filename, constraints):
     """
@@ -219,22 +220,17 @@ def write_md_input(xyz_filename, elements, basename, constraints,
     # Write the mol to a file
     conv.WriteFile(mol, outname)
 
-def write_opt_input(xyz_filename, basename, constraints, charge=0,
-        basis="svp", method="CF-UKS,COARSE=true,tpss", memory=4):
+def write_opt_input(xyz_filename, basename, constraints):
     """
-    Writes a cp2k inputfile in 'basename.inp'.
+    Writes a molpro inputfile in 'basename.com'.
     'constraints' is a list of single constraints.
     Each single constraint is a tuple of the form
     (index_1, index_2, distance)
-    'memory' is in GB and is converted to MWords
     """
 
     # Read in the input template
     with open(dir_path + "/baseoptinput.txt") as f:
         inp = f.read()
-
-    # Convert from gb to MWords
-    memory = int(memory/7.45e-3)
 
     # Do a constrained MM FF optimization to get initial structure
     conv, mol = constrained_ff_optimization(xyz_filename, constraints)
@@ -245,11 +241,7 @@ def write_opt_input(xyz_filename, basename, constraints, charge=0,
     atomtypes, coordinates = parse_xyz_string(xyz_string)
 
     # Change opt parameters
-    inp = inp.replace("$var_memory", str(memory))
-    inp = inp.replace("$block_xyz", get_molpro_coordinates(atomtypes, coordinates))
-    inp = inp.replace("$var_charge", str(charge))
-    inp = inp.replace("$var_basis", str(basis))
-    inp = inp.replace("$var_method", str(method))
+    inp = inp.replace("$var_xyzfilename",basename + ".xyz")
 
     con = "constraint,$var_distance,angstrom,bond,atoms=[$var_pos1,$var_pos2]\n"
 
@@ -259,6 +251,18 @@ def write_opt_input(xyz_filename, basename, constraints, charge=0,
         this_constraint = this_constraint.replace("$var_pos1", str(atomtypes[index1]) + str(index1))
         this_constraint = this_constraint.replace("$var_pos2", str(atomtypes[index2]) + str(index2))
         constraint_block += this_constraint
+
+    # Additional hardcoded angle constraint
+    con = "constraint,180,deg,angle,atoms=[$var_pos1,$var_pos2,$var_pos3]\n"
+
+    constraint_block = ""
+    index1 = constraints[0][1]
+    index2 = constraints[0][0]
+    index3 = constraints[1][1]
+    this_constraint = con.replace("$var_pos1", str(atomtypes[index1]) + str(index1))
+    this_constraint = this_constraint.replace("$var_pos2", str(atomtypes[index2]) + str(index2))
+    this_constraint = this_constraint.replace("$var_pos3", str(atomtypes[index3]) + str(index3))
+    constraint_block += this_constraint
 
     inp = inp.replace("$block_constraints", constraint_block)
 

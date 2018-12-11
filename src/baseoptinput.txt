@@ -1,5 +1,3 @@
-memory,$var_memory,m
-
 geomtyp=xyz
 
 nosym
@@ -7,13 +5,18 @@ noorient
 gdirect
 angstrom
 
-geometry={
-$block_xyz}
+geometry=$var_xyzfilename
 
-set,charge=$var_charge
+set,charge=0
 
-basis=$var_basis
+basis=svp
 
-{$var_method;}
-{optg,method=slrf;
-$block_constraints{slopt;cart;}}
+{cf-uks,pbe;}
+{optg,method=slrf,maxiter=50;
+$block_constraints{slopt;}}
+{cf-uks,pbe0;}
+{optg,method=slrf,maxiter=20;
+$block_constraints{slopt;}}
+basis=tzvp
+{cf-uks,pbe;}
+force

@@ -41,8 +41,6 @@ def get_constraints(atomtypes, coordinates):
 
     return constraints, basenames
 
-
-
 if __name__ == "__main__":
 
     filename = "isopentane_cn.xyz"
